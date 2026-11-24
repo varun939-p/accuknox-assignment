@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
-app = FastAPI(title="Mock Student Scores API")
+app = FastAPI()
 
 STUDENTS = [
     {"id": 1, "name": "Aarav Sharma", "subject": "Mathematics", "score": 84},
@@ -19,16 +19,11 @@ STUDENTS = [
 ]
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
 @app.get("/api/scores")
-def get_scores(subject: str | None = None) -> list[dict]:
-    if subject is None:
-        return STUDENTS
-    return [s for s in STUDENTS if s["subject"].casefold() == subject.strip().casefold()]
+def get_scores(subject: str | None = None):
+    if subject:
+        return [s for s in STUDENTS if s["subject"].lower() == subject.lower()]
+    return STUDENTS
 
 
 if __name__ == "__main__":
