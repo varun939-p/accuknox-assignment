@@ -9,10 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 CSV_PATH = BASE_DIR / "users.csv"
 DB_PATH = BASE_DIR / "users.db"
 
-# Practical check, not full RFC 5322. Local part must start with a letter or digit.
 EMAIL_RE = re.compile(r"[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}")
-
-# Excel and Sheets evaluate cells starting with these as formulas when the data is exported and reopened.
 FORMULA_PREFIXES = ("=", "+", "-", "@")
 
 SCHEMA = """
@@ -53,16 +50,15 @@ def read_users(path: Path) -> tuple[list[tuple[str, str]], list[tuple[int, str]]
     return valid, rejected
 
 
-def main() -> int:
+def main():
     try:
         users, rejected = read_users(CSV_PATH)
     except (OSError, ValueError, csv.Error) as exc:
-        print(f"error: cannot read {CSV_PATH.name}: {exc}", file=sys.stderr)
-        return 1
+        print(f"Failed to read {CSV_PATH.name}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         with closing(sqlite3.connect(DB_PATH)) as conn:
-            # One transaction for the whole batch: either every valid row lands or none do.
             with conn:
                 conn.execute(SCHEMA)
                 inserted = conn.executemany(
@@ -70,8 +66,8 @@ def main() -> int:
                 ).rowcount
             rows = conn.execute("SELECT id, name, email FROM users ORDER BY id").fetchall()
     except sqlite3.Error as exc:
-        print(f"error: database operation failed: {exc}", file=sys.stderr)
-        return 1
+        print(f"SQLite error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     print(f"inserted: {inserted}  duplicates: {len(users) - inserted}  skipped_invalid: {len(rejected)}")
     for line, reason in rejected:
@@ -82,10 +78,7 @@ def main() -> int:
     print(f"{'-' * 3}  {'-' * 20}  {'-' * 32}")
     for user_id, name, email in rows:
         print(f"{user_id:>3}  {name[:20]:<20}  {email}")
-    return 0
 
 
 if __name__ == "__main__":
-    # Redirected stdout on Windows defaults to cp1252, which crashes on names outside that code page.
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.exit(main())
+    main()

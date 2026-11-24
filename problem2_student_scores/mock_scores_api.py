@@ -32,5 +32,4 @@ def get_scores(subject: str | None = None) -> list[dict]:
 
 
 if __name__ == "__main__":
-    # Bound to localhost on purpose: this is a dev mock, not something to expose on the network.
     uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -1,7 +1,6 @@
 import sqlite3
 import sys
 from contextlib import closing
-from datetime import date
 from pathlib import Path
 
 import requests
@@ -25,7 +24,6 @@ def fetch_docs(query: str = "computer security", limit: int = 15) -> list:
     params = {"q": query, "limit": limit, "fields": "title,author_name,first_publish_year"}
     response = requests.get(API_URL, params=params, headers=HEADERS, timeout=20)
     response.raise_for_status()
-    # A non-JSON body raises requests.JSONDecodeError, a RequestException subclass, so main() catches it.
     payload = response.json()
     docs = payload.get("docs") if isinstance(payload, dict) else None
     return docs if isinstance(docs, list) else []
@@ -36,7 +34,6 @@ def parse_book(doc: dict) -> tuple[str, str, int | None] | None:
     if not isinstance(title, str) or not title.strip():
         return None
 
-    # author_name is a list because a work can have several authors; two is enough for display.
     raw_authors = doc.get("author_name")
     if not isinstance(raw_authors, list):
         raw_authors = []
@@ -44,7 +41,7 @@ def parse_book(doc: dict) -> tuple[str, str, int | None] | None:
     author = ", ".join(authors[:2]) or "Unknown"
 
     year = doc.get("first_publish_year")
-    if not isinstance(year, int) or not 0 < year <= date.today().year:
+    if not isinstance(year, int):
         year = None
 
     return title.strip(), author, year
@@ -73,7 +70,6 @@ def main() -> int:
     skipped = len(docs) - len(books)
 
     try:
-        # "with conn" only commits or rolls back the transaction; closing() is what releases the file.
         with closing(sqlite3.connect(DB_PATH)) as conn:
             with conn:
                 conn.execute(SCHEMA)
@@ -96,6 +92,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # Redirected stdout on Windows defaults to cp1252, which crashes on titles in Polish, Cyrillic, etc.
     sys.stdout.reconfigure(encoding="utf-8")
     sys.exit(main())

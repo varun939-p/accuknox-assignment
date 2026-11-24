@@ -32,10 +32,7 @@ def clean_records(records: list) -> list[tuple[str, str, float]]:
         name, subject, score = item.get("name"), item.get("subject"), item.get("score")
         if not isinstance(name, str) or not name.strip():
             continue
-        # bool is a subclass of int in Python, so a JSON true would otherwise count as a score of 1.
-        if isinstance(score, bool) or not isinstance(score, (int, float)):
-            continue
-        if not 0 <= score <= 100:
+        if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
             continue
         subject = subject.strip() if isinstance(subject, str) and subject.strip() else "-"
         students.append((name.strip(), subject, float(score)))
@@ -62,7 +59,6 @@ def plot_scores(students: list[tuple[str, str, float]], average: float, path: Pa
     names = [s[0] for s in ranked]
     scores = [s[2] for s in ranked]
     colors = [ABOVE_COLOR if score >= average else BELOW_COLOR for score in scores]
-    # Numeric x positions so two students with the same name still get separate bars.
     positions = range(len(ranked))
 
     fig, ax = plt.subplots(figsize=(11, 6))
@@ -92,31 +88,25 @@ def plot_scores(students: list[tuple[str, str, float]], average: float, path: Pa
     plt.close(fig)
 
 
-def main() -> int:
+def main():
     try:
         records = fetch_records()
     except requests.ConnectionError:
-        print(f"error: cannot reach {API_URL} - start it first with: python mock_scores_api.py", file=sys.stderr)
-        return 1
+        sys.exit(f"Could not connect to {API_URL}. Start mock_scores_api.py first.")
     except requests.RequestException as exc:
-        print(f"error: failed to fetch scores: {exc}", file=sys.stderr)
-        return 1
+        sys.exit(f"Request to {API_URL} failed: {exc}")
 
     students = clean_records(records)
     if len(students) < len(records):
         print(f"skipped {len(records) - len(students)} malformed record(s)")
     if not students:
-        print("error: no valid scores to plot", file=sys.stderr)
-        return 1
+        sys.exit("No valid scores in the API response.")
 
     average = sum(s[2] for s in students) / len(students)
     print_summary(students, average)
     plot_scores(students, average, CHART_PATH)
     print(f"\nchart saved to {CHART_PATH}")
-    return 0
 
 
 if __name__ == "__main__":
-    # Redirected stdout on Windows defaults to cp1252, which crashes on names outside that code page.
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.exit(main())
+    main()
